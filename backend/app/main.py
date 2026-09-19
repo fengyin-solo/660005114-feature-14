@@ -72,21 +72,25 @@ def compute_fft(i: np.ndarray, q: np.ndarray, fs: float = 1000.0):
 
 
 def compute_waterfall(i: np.ndarray, q: np.ndarray, fs: float = 1000.0, rows: int = 40):
-    """Compute spectrogram waterfall"""
+    """Compute spectrogram waterfall, one FFT row per time slice"""
     n = len(i)
     seg = n // rows
+    if seg < 8:
+        return []
+    freqs = np.fft.fftshift(np.fft.fftfreq(seg, 1 / fs)).tolist()
     waterfall = []
     for r in range(rows):
         seg_i = i[r * seg:(r + 1) * seg]
         seg_q = q[r * seg:(r + 1) * seg]
-        if len(seg_i) < 32:
+        if len(seg_i) < 8:
             break
         fft = np.fft.fftshift(np.fft.fft(seg_i + 1j * seg_q))
         mag_db = 20 * np.log10(np.abs(fft) / len(seg_i) + 1e-10)
-        half = len(mag_db) // 2
         waterfall.append({
+            "index": r,
             "time": r * seg / fs,
-            "values": mag_db[half:].tolist()
+            "frequencies": freqs,
+            "values": mag_db.tolist()
         })
     return waterfall
 
@@ -137,9 +141,11 @@ def generate_and_analyze(req: GenerateRequest):
 
     n = len(i)
     step = max(1, n // 200)
-    constellation = [{"i": float(i[k]), "q": float(q[k])} for k in range(0, n, step)]
+    constellation = [{"i": float(i[k]), "q": float(q[k]), "index": k} for k in range(0, n, step)]
 
     return {
+        "sampleCount": n,
+        "sampleRate": 1000.0,
         "spectrum": {"frequencies": freqs, "magnitudes": mags},
         "waterfall": waterfall,
         "constellation": constellation,

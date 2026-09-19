@@ -24,6 +24,8 @@
         </el-form>
       </div>
 
+      <PlaybackControls />
+
       <div v-if="store.result" class="results-grid">
         <SpectrumPlot />
         <ConstellationPlot />
@@ -40,6 +42,7 @@ import SpectrumPlot from './components/SpectrumPlot.vue'
 import ConstellationPlot from './components/ConstellationPlot.vue'
 import WaterfallPlot from './components/WaterfallPlot.vue'
 import ModulationResult from './components/ModulationResult.vue'
+import PlaybackControls from './components/PlaybackControls.vue'
 import { useSignalStore } from './store/signal'
 const store = useSignalStore()
 const form = reactive({ modulation: 'QPSK', samples: 1024, snr: 20 })

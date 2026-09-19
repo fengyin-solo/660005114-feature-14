@@ -11,13 +11,16 @@ export interface SpectrumData {
 }
 
 export interface WaterfallRow {
+  index: number
   time: number
+  frequencies: number[]
   values: number[]
 }
 
 export interface ConstellationPoint {
   i: number
   q: number
+  index: number
 }
 
 export interface ModulationResult {
@@ -29,6 +32,8 @@ export interface ModulationResult {
 }
 
 export interface AnalysisResult {
+  sampleCount: number
+  sampleRate: number
   spectrum: SpectrumData
   waterfall: WaterfallRow[]
   constellation: ConstellationPoint[]

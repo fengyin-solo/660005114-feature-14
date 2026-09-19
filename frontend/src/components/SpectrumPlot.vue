@@ -14,31 +14,37 @@ const chart = ref<HTMLDivElement>()
 let instance: echarts.ECharts | null = null
 
 function update() {
-  if (!instance || !store.result) return
-  const { frequencies, magnitudes } = store.result.spectrum
-  const n = frequencies.length
-  const halfN = Math.floor(n / 2)
-  const data = []
-  for (let i = 0; i < halfN; i++) {
+  if (!instance) return
+  let { frequencies, magnitudes } = store.visibleSpectrum
+  // 静态全信号 FFT 只取正半轴，与回放频谱使用同一频率轴
+  if (!store.isReplaying && store.result) {
+    const n = frequencies.length
+    const halfN = Math.floor(n / 2)
+    frequencies = frequencies.slice(halfN)
+    magnitudes = magnitudes.slice(halfN)
+  }
+  const data: [number, number][] = []
+  for (let i = 0; i < frequencies.length; i++) {
     data.push([frequencies[i], magnitudes[i]])
   }
   instance.setOption({
     backgroundColor: 'transparent',
     grid: { left: 50, right: 15, top: 15, bottom: 35 },
-    xAxis: { type: 'value', name: '频率 (Hz)', nameLocation: 'middle', nameGap: 25, axisLabel: { color: '#8899aa' } },
-    yAxis: { type: 'value', name: '幅度 (dB)', nameLocation: 'middle', nameGap: 40, axisLabel: { color: '#8899aa' } },
+    // 频率轴固定 0 ~ fs/2，保证回放推进时横轴不跳变
+    xAxis: { type: 'value', min: 0, max: (store.result?.sampleRate ?? 1000) / 2, name: '频率 (Hz)', nameLocation: 'middle', nameGap: 25, axisLabel: { color: '#8899aa' } },
+    yAxis: { type: 'value', name: '幅度 (dB)', nameLocation: 'middle', nameGap: 40, axisLabel: { color: '#8899aa' }, scale: true },
     series: [{
       type: 'line', data, symbol: 'none', lineStyle: { color: '#42a5f5', width: 1.5 },
       areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(66,165,245,0.4)' }, { offset: 1, color: 'rgba(66,165,245,0.02)' }]) }
     }],
     animation: false
-  })
+  }, true)
 }
 
 onMounted(() => {
   if (chart.value) { instance = echarts.init(chart.value); update() }
 })
-watch(() => store.result, update)
+watch(() => store.visibleSpectrum, update)
 onUnmounted(() => { instance?.dispose() })
 </script>
 
