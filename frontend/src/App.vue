@@ -24,6 +24,8 @@
         </el-form>
       </div>
 
+      <ReplayControls />
+
       <div v-if="store.result" class="results-grid">
         <SpectrumPlot />
         <ConstellationPlot />
@@ -35,15 +37,18 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { reactive, watch } from 'vue'
 import SpectrumPlot from './components/SpectrumPlot.vue'
 import ConstellationPlot from './components/ConstellationPlot.vue'
 import WaterfallPlot from './components/WaterfallPlot.vue'
 import ModulationResult from './components/ModulationResult.vue'
+import ReplayControls from './components/ReplayControls.vue'
 import { useSignalStore } from './store/signal'
 const store = useSignalStore()
 const form = reactive({ modulation: 'QPSK', samples: 1024, snr: 20 })
 function generate() { store.analyze({ ...form }) }
+// 切换到另一组参数时停止当前回放并回到初始状态
+watch(form, () => store.resetReplay())
 </script>
 
 <style>

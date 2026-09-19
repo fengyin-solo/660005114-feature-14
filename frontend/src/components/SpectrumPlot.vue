@@ -15,7 +15,17 @@ let instance: echarts.ECharts | null = null
 
 function update() {
   if (!instance || !store.result) return
-  const { frequencies, magnitudes } = store.result.spectrum
+  let frequencies: number[] = [], magnitudes: number[] = []
+  if (store.replayActive) {
+    // 回放中: 显示当前时间片为止的累积频谱
+    if (store.replaySegment > 0) {
+      frequencies = store.result.timeline.frequencies
+      magnitudes = store.result.timeline.magnitudes[store.replaySegment - 1]
+    }
+  } else {
+    frequencies = store.result.spectrum.frequencies
+    magnitudes = store.result.spectrum.magnitudes
+  }
   const n = frequencies.length
   const halfN = Math.floor(n / 2)
   const data = []
@@ -38,7 +48,7 @@ function update() {
 onMounted(() => {
   if (chart.value) { instance = echarts.init(chart.value); update() }
 })
-watch(() => store.result, update)
+watch(() => [store.result, store.replayActive, store.replaySegment], update)
 onUnmounted(() => { instance?.dispose() })
 </script>
 

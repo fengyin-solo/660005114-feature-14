@@ -71,16 +71,20 @@ def compute_fft(i: np.ndarray, q: np.ndarray, fs: float = 1000.0):
     return freqs.tolist(), mag_db.tolist()
 
 
+def segment_params(n: int, rows: int = 40):
+    """Time-slice segmentation shared by waterfall and timeline replay"""
+    seg = max(32, n // rows)
+    return seg, min(rows, n // seg)
+
+
 def compute_waterfall(i: np.ndarray, q: np.ndarray, fs: float = 1000.0, rows: int = 40):
     """Compute spectrogram waterfall"""
     n = len(i)
-    seg = n // rows
+    seg, n_rows = segment_params(n, rows)
     waterfall = []
-    for r in range(rows):
+    for r in range(n_rows):
         seg_i = i[r * seg:(r + 1) * seg]
         seg_q = q[r * seg:(r + 1) * seg]
-        if len(seg_i) < 32:
-            break
         fft = np.fft.fftshift(np.fft.fft(seg_i + 1j * seg_q))
         mag_db = 20 * np.log10(np.abs(fft) / len(seg_i) + 1e-10)
         half = len(mag_db) // 2
@@ -89,6 +93,37 @@ def compute_waterfall(i: np.ndarray, q: np.ndarray, fs: float = 1000.0, rows: in
             "values": mag_db[half:].tolist()
         })
     return waterfall
+
+
+def compute_timeline(i: np.ndarray, q: np.ndarray, fs: float = 1000.0, rows: int = 40, max_bins: int = 256):
+    """Cumulative spectrum per time slice for timeline replay.
+
+    Slice boundaries match the waterfall rows. Each slice spectrum is the FFT of
+    the samples revealed so far, zero-padded to the full capture length so all
+    slices share the frequency grid of the full-capture spectrum.
+    """
+    n = len(i)
+    seg, n_rows = segment_params(n, rows)
+    # Peak-hold decimation: each output bin keeps the max of the bins it covers,
+    # so narrowband peaks survive downsampling to a bounded grid.
+    stride = max(1, n // max_bins)
+    n_bins = n // stride
+    grid = np.fft.fftshift(np.fft.fftfreq(n, 1 / fs))
+    freqs = grid[:n_bins * stride].reshape(n_bins, stride).mean(axis=1)
+    magnitudes = []
+    for r in range(n_rows):
+        k = (r + 1) * seg
+        padded = np.zeros(n, dtype=complex)
+        padded[:k] = i[:k] + 1j * q[:k]
+        fft = np.fft.fftshift(np.fft.fft(padded))
+        mag_db = 20 * np.log10(np.abs(fft) / k + 1e-10)
+        pooled = mag_db[:n_bins * stride].reshape(n_bins, stride).max(axis=1)
+        magnitudes.append([round(v, 2) for v in pooled.tolist()])
+    return {
+        "frequencies": [round(f, 2) for f in freqs.tolist()],
+        "magnitudes": magnitudes,
+        "segmentSamples": seg
+    }
 
 
 def classify_modulation(i: np.ndarray, q: np.ndarray) -> dict:
@@ -133,6 +168,7 @@ def generate_and_analyze(req: GenerateRequest):
     i, q = generate_signal(req.modulation, req.samples, req.snr)
     freqs, mags = compute_fft(i, q)
     waterfall = compute_waterfall(i, q)
+    timeline = compute_timeline(i, q)
     modulation = classify_modulation(i, q)
 
     n = len(i)
@@ -142,6 +178,7 @@ def generate_and_analyze(req: GenerateRequest):
     return {
         "spectrum": {"frequencies": freqs, "magnitudes": mags},
         "waterfall": waterfall,
+        "timeline": timeline,
         "constellation": constellation,
         "modulation": modulation
     }

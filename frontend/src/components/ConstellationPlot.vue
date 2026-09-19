@@ -18,7 +18,13 @@ function draw() {
   ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke()
   ctx.beginPath(); ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H); ctx.stroke()
 
-  const pts = store.result?.constellation || []
+  const allPts = store.result?.constellation || []
+  // 回放中按时间片进度截断采样点(采样点在整个捕获时长上均匀分布)
+  const total = store.result?.timeline?.magnitudes.length || 1
+  const revealed = store.replayActive
+    ? Math.ceil(allPts.length * store.replaySegment / total)
+    : allPts.length
+  const pts = allPts.slice(0, revealed)
   if (pts.length === 0) return
   const scale = W * 0.4
   for (const pt of pts) {
@@ -32,7 +38,7 @@ function draw() {
 }
 
 onMounted(draw)
-watch(() => store.result, draw)
+watch(() => [store.result, store.replayActive, store.replaySegment], draw)
 </script>
 
 <style scoped>

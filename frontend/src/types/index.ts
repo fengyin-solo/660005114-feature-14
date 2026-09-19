@@ -28,9 +28,17 @@ export interface ModulationResult {
   frequencyOffset: number | null
 }
 
+export interface TimelineData {
+  frequencies: number[]
+  /** magnitudes[s] = 前 s+1 个时间片累积数据的频谱, 与瀑布图行一一对应 */
+  magnitudes: number[][]
+  segmentSamples: number
+}
+
 export interface AnalysisResult {
   spectrum: SpectrumData
   waterfall: WaterfallRow[]
+  timeline: TimelineData
   constellation: ConstellationPoint[]
   modulation: ModulationResult
 }

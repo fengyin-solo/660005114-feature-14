@@ -13,12 +13,14 @@ const cvs = ref<HTMLCanvasElement>()
 
 function draw() {
   const c = cvs.value!; const ctx = c.getContext('2d')!; const W = c.width, H = c.height
-  const rows = store.result?.waterfall || []
-  if (!rows.length) return
+  const allRows = store.result?.waterfall || []
   ctx.fillStyle = '#0d1520'; ctx.fillRect(0, 0, W, H)
-  const rowH = H / rows.length
-  for (let r = 0; r < rows.length; r++) {
-    const vals = rows[r].values, n = vals.length
+  if (!allRows.length) return
+  // 回放中只绘制已放出的时间片对应的行
+  const revealed = store.replayActive ? Math.min(store.replaySegment, allRows.length) : allRows.length
+  const rowH = H / allRows.length
+  for (let r = 0; r < revealed; r++) {
+    const vals = allRows[r].values, n = vals.length
     if (!n) continue
     const valsMin = Math.min(...vals), valsMax = Math.max(...vals)
     const vRange = valsMax - valsMin || 1
@@ -34,7 +36,7 @@ function draw() {
 }
 
 onMounted(draw)
-watch(() => store.result, draw)
+watch(() => [store.result, store.replayActive, store.replaySegment], draw)
 </script>
 
 <style scoped>
